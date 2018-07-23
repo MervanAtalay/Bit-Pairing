@@ -1,0 +1,103 @@
+
+-- -------------------------------------------------------------
+-- Engineer: Mervan Atalay
+
+
+--  This core is distributed in the hope that it will be useful, but WITHOUT ANY
+--  WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+-- A PARTICULAR PURPOSE.
+-- -------------------------------------------------------------
+LIBRARY IEEE;
+USE IEEE.std_logic_1164.ALL;
+USE IEEE.numeric_std.ALL;
+
+ENTITY Bit_Pairing IS
+  PORT( clk                               :   IN    std_logic;
+        reset                             :   IN    std_logic;
+        enb_1_4_1                         :   IN    std_logic;
+        enb_1_4_0                         :   IN    std_logic;
+        Serial_In                         :   IN    std_logic;
+        Bit_Pair                          :   OUT   std_logic_vector(1 DOWNTO 0)  -- ufix2
+        );
+END Bit_Pairing;
+
+
+ARCHITECTURE rtl OF Bit_Pairing IS
+
+  -- Signals
+  SIGNAL Downsample_out1                  : std_logic;
+  SIGNAL Delay2_out1                      : std_logic;
+  SIGNAL Downsample1_out1                 : std_logic;
+  SIGNAL Delay1_out1                      : std_logic;
+  SIGNAL Bit_Concat_out1                  : unsigned(1 DOWNTO 0);  -- ufix2
+  SIGNAL Bit_Concat_out1_1                : unsigned(1 DOWNTO 0);  -- ufix2
+
+BEGIN
+  -- Downsample output register
+  Downsample_output_process : PROCESS (clk)
+  BEGIN
+    IF clk'EVENT AND clk = '1' THEN
+      IF reset = '1' THEN
+        Downsample_out1 <= '0';
+      ELSIF enb_1_4_0 = '1' THEN
+        Downsample_out1 <= Serial_In;
+      END IF;
+    END IF;
+  END PROCESS Downsample_output_process;
+
+
+  Delay2_process : PROCESS (clk)
+  BEGIN
+    IF clk'EVENT AND clk = '1' THEN
+      IF reset = '1' THEN
+        Delay2_out1 <= '0';
+      ELSIF enb_1_4_0 = '1' THEN
+        Delay2_out1 <= Downsample_out1;
+      END IF;
+    END IF;
+  END PROCESS Delay2_process;
+
+
+  -- Downsample by 2 register (Sample offset 0)
+  Downsample1_output_process : PROCESS (clk)
+  BEGIN
+    IF clk'EVENT AND clk = '1' THEN
+      IF reset = '1' THEN
+        Downsample1_out1 <= '0';
+      ELSIF enb_1_4_1 = '1' THEN
+        Downsample1_out1 <= Serial_In;
+      END IF;
+    END IF;
+  END PROCESS Downsample1_output_process;
+
+
+  Delay1_process : PROCESS (clk)
+  BEGIN
+    IF clk'EVENT AND clk = '1' THEN
+      IF reset = '1' THEN
+        Delay1_out1 <= '0';
+      ELSIF enb_1_4_0 = '1' THEN
+        Delay1_out1 <= Downsample1_out1;
+      END IF;
+    END IF;
+  END PROCESS Delay1_process;
+
+
+  Bit_Concat_out1 <= unsigned'(Delay2_out1 & Delay1_out1);
+
+  delayMatch_process : PROCESS (clk)
+  BEGIN
+    IF clk'EVENT AND clk = '1' THEN
+      IF reset = '1' THEN
+        Bit_Concat_out1_1 <= to_unsigned(16#0#, 2);
+      ELSIF enb_1_4_0 = '1' THEN
+        Bit_Concat_out1_1 <= Bit_Concat_out1;
+      END IF;
+    END IF;
+  END PROCESS delayMatch_process;
+
+
+  Bit_Pair <= std_logic_vector(Bit_Concat_out1_1);
+
+END rtl;
+
